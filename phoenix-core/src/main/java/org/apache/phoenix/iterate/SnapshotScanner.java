@@ -96,7 +96,7 @@ public class SnapshotScanner extends AbstractClientScanner {
               tableName, null, null, null, statsWriter, table);
     } else if (scan.getAttribute(BaseScannerRegionObserver.NON_AGGREGATE_QUERY) != null) {
       RegionScannerFactory regionScannerFactory = new NonAggregateRegionScannerFactory(snapshotEnv);
-      this.scanner = regionScannerFactory.getRegionScanner(scan, region.getScanner(scan));
+      this.scanner = regionScannerFactory.getRegionScanner(scan, region.getScanner(scan), null);
       statisticsCollector = new NoOpStatisticsCollector();
     } else {
       /* future work : Snapshot M/R jobs for aggregate queries*/

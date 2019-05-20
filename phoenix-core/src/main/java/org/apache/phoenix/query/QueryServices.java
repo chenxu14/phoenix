@@ -66,6 +66,7 @@ public interface QueryServices extends SQLCloseable {
     // joni byte regex engine setting
     public static final String USE_BYTE_BASED_REGEX_ATTRIB = "phoenix.regex.byteBased";
     public static final String DRIVER_SHUTDOWN_TIMEOUT_MS = "phoenix.shutdown.timeoutMs";
+    public static final String GIVEUP_LARGEQUERY = "phoenix.largequery.giveup";
 
     /**
 	 * max size to spool the the result into

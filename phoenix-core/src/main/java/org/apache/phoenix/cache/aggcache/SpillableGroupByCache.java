@@ -38,6 +38,7 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.phoenix.cache.GlobalCache;
 import org.apache.phoenix.cache.TenantCache;
@@ -351,7 +352,7 @@ public class SpillableGroupByCache implements GroupByCache {
             }
 
             @Override
-            public boolean next(List<Cell> results) throws IOException {
+            public boolean next(List<Cell> results, ScannerContext scannerContext) throws IOException {
                 if (!cacheIter.hasNext()) {
                     return false;
                 }

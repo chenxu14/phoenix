@@ -36,6 +36,7 @@ import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.coprocessor.RegionObserver;
 import org.apache.hadoop.hbase.regionserver.MiniBatchOperationInProgress;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.phoenix.coprocessor.generated.DynamicColumnMetaDataProtos;
@@ -189,9 +190,10 @@ public class ScanRegionObserver extends BaseScannerRegionObserver implements Reg
     }
 
     @Override
-    protected RegionScanner doPostScannerOpen(final ObserverContext<RegionCoprocessorEnvironment> c, final Scan scan, final RegionScanner s) throws Throwable {
+    protected RegionScanner doPostScannerOpen(final ObserverContext<RegionCoprocessorEnvironment> c, final Scan scan,
+           final RegionScanner s, final ScannerContext scannerContext) throws Throwable {
         NonAggregateRegionScannerFactory nonAggregateROUtil = new NonAggregateRegionScannerFactory(c.getEnvironment());
-        return nonAggregateROUtil.getRegionScanner(scan, s);
+        return nonAggregateROUtil.getRegionScanner(scan, s, scannerContext);
     }
 
     @Override

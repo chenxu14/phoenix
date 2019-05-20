@@ -46,6 +46,7 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.phoenix.coprocessor.BaseRegionScanner;
@@ -163,7 +164,7 @@ public class NonTxIndexBuilderTest extends BaseConnectionlessQueryTest {
     private RegionScanner getMockTimeRangeRegionScanner(final TimeRange timeRange) {
         return new BaseRegionScanner(Mockito.mock(RegionScanner.class)) {
             @Override
-            public boolean next(List<Cell> results) throws IOException {
+            public boolean next(List<Cell> results, ScannerContext scannerContext) throws IOException {
                 for (Cell cell : currentRowCells) {
                     if (cell.getTimestamp() >= timeRange.getMin()
                             && cell.getTimestamp() < timeRange.getMax()) {

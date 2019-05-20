@@ -78,6 +78,7 @@ import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScanOptions;
 import org.apache.hadoop.hbase.regionserver.ScanType;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.hadoop.hbase.regionserver.Store;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionLifeCycleTracker;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
@@ -130,7 +131,6 @@ import org.apache.phoenix.schema.stats.NoOpStatisticsCollector;
 import org.apache.phoenix.schema.stats.StatisticsCollectionRunTracker;
 import org.apache.phoenix.schema.stats.StatisticsCollector;
 import org.apache.phoenix.schema.stats.StatisticsCollectorFactory;
-import org.apache.phoenix.schema.stats.StatisticsScanner;
 import org.apache.phoenix.schema.stats.StatsCollectionDisabledOnServerException;
 import org.apache.phoenix.schema.tuple.EncodedColumnQualiferCellsList;
 import org.apache.phoenix.schema.tuple.MultiKeyValueTuple;
@@ -405,7 +405,8 @@ public class UngroupedAggregateRegionObserver extends BaseScannerRegionObserver 
     }
 
     @Override
-    protected RegionScanner doPostScannerOpen(final ObserverContext<RegionCoprocessorEnvironment> c, final Scan scan, final RegionScanner s) throws IOException, SQLException {
+    protected RegionScanner doPostScannerOpen(final ObserverContext<RegionCoprocessorEnvironment> c, final Scan scan,
+          final RegionScanner s, ScannerContext scannerContext) throws IOException, SQLException {
         RegionCoprocessorEnvironment env = c.getEnvironment();
         Region region = env.getRegion();
         long ts = scan.getTimeRange().getMax();
@@ -599,7 +600,7 @@ public class UngroupedAggregateRegionObserver extends BaseScannerRegionObserver 
                     // Results are potentially returned even when the return value of s.next is false
                     // since this is an indication of whether or not there are more values after the
                     // ones returned
-                    hasMore = innerScanner.nextRaw(results);
+                    hasMore = scannerContext == null ? innerScanner.nextRaw(results) : innerScanner.nextRaw(results, scannerContext);
                     if (!results.isEmpty()) {
                         rowCount++;
                         result.setKeyValues(results);
@@ -889,7 +890,7 @@ public class UngroupedAggregateRegionObserver extends BaseScannerRegionObserver 
             }
 
             @Override
-            public boolean next(List<Cell> results) throws IOException {
+            public boolean next(List<Cell> results, ScannerContext scannerContext) throws IOException {
                 if (done) return false;
                 done = true;
                 results.add(aggKeyValue);
@@ -902,7 +903,6 @@ public class UngroupedAggregateRegionObserver extends BaseScannerRegionObserver 
             }
         };
         return scanner;
-
     }
 
     private static void tryClosingResourceSilently(Closeable res) {
@@ -1187,7 +1187,7 @@ public class UngroupedAggregateRegionObserver extends BaseScannerRegionObserver 
             }
 
             @Override
-            public boolean next(List<Cell> results) throws IOException {
+            public boolean next(List<Cell> results, ScannerContext scannerContext) throws IOException {
                 results.add(aggKeyValue);
                 return false;
             }
@@ -1246,7 +1246,7 @@ public class UngroupedAggregateRegionObserver extends BaseScannerRegionObserver 
             }
 
             @Override
-            public boolean next(List<Cell> results) throws IOException {
+            public boolean next(List<Cell> results, ScannerContext scannerContext) throws IOException {
                 results.add(aggKeyValue);
                 return false;
             }

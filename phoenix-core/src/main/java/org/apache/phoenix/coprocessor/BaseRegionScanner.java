@@ -37,12 +37,12 @@ public abstract class BaseRegionScanner extends DelegateRegionScanner {
     }
 
     @Override
-    public abstract boolean next(List<Cell> results) throws IOException;
+    public boolean next(List<Cell> results) throws IOException {
+        return next(results, null);
+    }
 
     @Override
-    public boolean next(List<Cell> result, ScannerContext scannerContext) throws IOException {
-        throw new IOException("Next with scannerContext should not be called in Phoenix environment");
-    }
+    public abstract boolean next(List<Cell> result, ScannerContext scannerContext) throws IOException;
 
     @Override
     public boolean reseek(byte[] row) throws IOException {
@@ -56,6 +56,6 @@ public abstract class BaseRegionScanner extends DelegateRegionScanner {
 
     @Override
     public boolean nextRaw(List<Cell> result, ScannerContext scannerContext) throws IOException {
-        throw new IOException("NextRaw with scannerContext should not be called in Phoenix environment");
+        return next(result, scannerContext);
     }
 }

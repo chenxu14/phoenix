@@ -24,7 +24,10 @@ import java.util.List;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
+import org.apache.hadoop.hbase.regionserver.ScannerContext.LimitScope;
 import org.apache.hadoop.hbase.util.Pair;
+import org.apache.phoenix.exception.LargeQueryException;
 import org.apache.phoenix.schema.PTable.QualifierEncodingScheme;
 import org.apache.phoenix.schema.tuple.EncodedColumnQualiferCellsList;
 import org.apache.phoenix.schema.tuple.MultiKeyValueTuple;
@@ -32,19 +35,27 @@ import org.apache.phoenix.schema.tuple.PositionBasedMultiKeyValueTuple;
 import org.apache.phoenix.schema.tuple.Tuple;
 import org.apache.phoenix.util.EncodedColumnsUtil;
 import org.apache.phoenix.util.ServerUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class RegionScannerResultIterator extends BaseResultIterator {
+    private static final Logger logger = LoggerFactory.getLogger(RegionScannerResultIterator.class);
     private final RegionScanner scanner;
     private final Pair<Integer, Integer> minMaxQualifiers;
     private final boolean useQualifierAsIndex;
     private final QualifierEncodingScheme encodingScheme;
+    private final ScannerContext scannerContext;
+    private final boolean giveupLargeQuery;
     
-    public RegionScannerResultIterator(RegionScanner scanner, Pair<Integer, Integer> minMaxQualifiers, QualifierEncodingScheme encodingScheme) {
+    public RegionScannerResultIterator(RegionScanner scanner, ScannerContext scannerContext,
+            Pair<Integer, Integer> minMaxQualifiers, QualifierEncodingScheme encodingScheme, boolean giveupLargeQuery) {
         this.scanner = scanner;
         this.useQualifierAsIndex = EncodedColumnsUtil.useQualifierAsIndex(minMaxQualifiers);
         this.minMaxQualifiers = minMaxQualifiers;
         this.encodingScheme = encodingScheme;
+        this.scannerContext = scannerContext;
+        this.giveupLargeQuery = giveupLargeQuery;
     }
 
     @Override
@@ -58,10 +69,19 @@ public class RegionScannerResultIterator extends BaseResultIterator {
                 // Results are potentially returned even when the return value of s.next is false
                 // since this is an indication of whether or not there are more values after the
                 // ones returned
-                boolean hasMore = scanner.nextRaw(results);
-
+                boolean hasMore;
+                if (giveupLargeQuery) {
+                    scannerContext.clearProgress(); // only check time limit
+                    hasMore = scanner.nextRaw(results, scannerContext);
+                } else {
+                    hasMore = scanner.nextRaw(results);
+                }
                 if (!hasMore && results.isEmpty()) {
                     return null;
+                } else if (giveupLargeQuery && scannerContext.checkTimeLimit(LimitScope.BETWEEN_ROWS)) {
+                    String msg = "Quering reached the timeout threshold, giveup the large query.";
+                    logger.info(msg);
+                    throw new LargeQueryException(msg);
                 }
                 // We instantiate a new tuple because in all cases currently we hang on to it
                 // (i.e. to compute and hold onto the TopN).

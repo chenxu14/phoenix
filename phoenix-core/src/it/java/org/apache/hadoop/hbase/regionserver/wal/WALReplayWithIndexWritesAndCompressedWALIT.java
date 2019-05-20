@@ -139,6 +139,7 @@ public class WALReplayWithIndexWritesAndCompressedWALIT {
     conf.setInt(HConstants.HBASE_RPC_TIMEOUT_KEY, 5000);
     // enable appends
     conf.setBoolean("dfs.support.append", true);
+    conf.set("hbase.wal.provider", "filesystem");
     IndexTestingUtils.setupConfig(conf);
   }
 

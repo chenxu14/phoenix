@@ -47,6 +47,7 @@ import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.coprocessor.RegionObserver;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
+import org.apache.hadoop.hbase.regionserver.ScannerContext;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.WritableUtils;
@@ -110,7 +111,7 @@ public class GroupedAggregateRegionObserver extends BaseScannerRegionObserver im
      */
     @Override
     protected RegionScanner doPostScannerOpen(ObserverContext<RegionCoprocessorEnvironment> c,
-            Scan scan, RegionScanner s) throws IOException {
+            Scan scan, RegionScanner s, ScannerContext scannerContext) throws IOException {
         boolean keyOrdered = false;
         byte[] expressionBytes = scan.getAttribute(BaseScannerRegionObserver.UNORDERED_GROUP_BY_EXPRESSIONS);
 
@@ -347,7 +348,7 @@ public class GroupedAggregateRegionObserver extends BaseScannerRegionObserver im
                 }
 
                 @Override
-                public boolean next(List<Cell> results) throws IOException {
+                public boolean next(List<Cell> results, ScannerContext scannerContext) throws IOException {
                     if (index >= aggResults.size()) {
                         return false;
                     }
@@ -486,7 +487,7 @@ public class GroupedAggregateRegionObserver extends BaseScannerRegionObserver im
             private ImmutableBytesPtr currentKey = null;
 
             @Override
-            public boolean next(List<Cell> results) throws IOException {
+            public boolean next(List<Cell> results, ScannerContext scannerContext) throws IOException {
                 boolean hasMore;
                 boolean atLimit;
                 boolean aggBoundary = false;
@@ -509,7 +510,7 @@ public class GroupedAggregateRegionObserver extends BaseScannerRegionObserver im
                             // since this is an indication of whether or not there
                             // are more values after the
                             // ones returned
-                            hasMore = scanner.nextRaw(kvs);
+                            hasMore = scannerContext == null ? scanner.nextRaw(kvs) : scanner.nextRaw(kvs, scannerContext);
                             if (!kvs.isEmpty()) {
                                 result.setKeyValues(kvs);
                                 key = TupleUtil.getConcatenatedValue(result, expressions);

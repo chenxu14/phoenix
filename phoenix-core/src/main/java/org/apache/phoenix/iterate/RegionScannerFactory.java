@@ -21,7 +21,11 @@ package org.apache.phoenix.iterate;
 import static org.apache.phoenix.coprocessor.ScanRegionObserver.WILDCARD_SCAN_INCLUDES_DYNAMIC_COLUMNS;
 import static org.apache.phoenix.schema.types.PDataType.TRUE_BYTES;
 
-import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Set;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HConstants;
@@ -34,7 +38,6 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScannerContext;
-import org.apache.hadoop.hbase.regionserver.ScannerContextUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.phoenix.coprocessor.generated.DynamicColumnMetaDataProtos;
@@ -58,11 +61,7 @@ import org.apache.phoenix.util.IndexUtil;
 import org.apache.phoenix.util.ScanUtil;
 import org.apache.phoenix.util.ServerUtil;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
+import com.google.common.collect.ImmutableList;
 
 public abstract class RegionScannerFactory {
 
@@ -87,7 +86,7 @@ public abstract class RegionScannerFactory {
    * @return
    * @throws Throwable
    */
-  public abstract RegionScanner getRegionScanner(final Scan scan, final RegionScanner s) throws Throwable;
+  public abstract RegionScanner getRegionScanner(final Scan scan, final RegionScanner s, final ScannerContext scannerContext) throws Throwable;
 
   /**
    * Return wrapped scanner that catches unexpected exceptions (i.e. Phoenix bugs) and
@@ -138,7 +137,12 @@ public abstract class RegionScannerFactory {
 
       @Override
       public boolean next(List<Cell> result, ScannerContext scannerContext) throws IOException {
-          throw new IOException("Next with scannerContext should not be called in Phoenix environment");
+        try {
+          return s.next(result, scannerContext);
+        } catch (Throwable t) {
+          ServerUtil.throwIOException(getRegion().getRegionInfo().getRegionNameAsString(), t);
+          return false; // impossible
+        }
       }
 
       @Override
@@ -167,9 +171,9 @@ public abstract class RegionScannerFactory {
       }
 
       @Override
-      public boolean nextRaw(List<Cell> result) throws IOException {
+      public boolean nextRaw(List<Cell> result, ScannerContext scannerContext) throws IOException {
         try {
-          boolean next = s.nextRaw(result);
+          boolean next = scannerContext == null ? s.nextRaw(result) : s.nextRaw(result, scannerContext);
           Cell arrayElementCell = null;
           if (result.size() == 0) {
             return next;
@@ -181,7 +185,7 @@ public abstract class RegionScannerFactory {
           if (ScanUtil.isLocalIndex(scan) && !ScanUtil.isAnalyzeTable(scan)) {
             if(actualStartKey!=null) {
               next = scanTillScanStartRow(s, arrayKVRefs, arrayFuncRefs, result,
-                  null, arrayElementCell);
+                  scannerContext, arrayElementCell);
               if (result.isEmpty()) {
                 return next;
               }
@@ -271,12 +275,8 @@ public abstract class RegionScannerFactory {
       }
 
       @Override
-      public boolean nextRaw(List<Cell> result, ScannerContext scannerContext)
-          throws IOException {
-        boolean res = next(result);
-        ScannerContextUtil.incrementSizeProgress(scannerContext, result);
-        ScannerContextUtil.updateTimeProgress(scannerContext);
-        return res;
+      public boolean nextRaw(List<Cell> result) throws IOException {
+        return nextRaw(result, null);
       }
 
       /**

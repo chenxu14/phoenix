@@ -304,7 +304,7 @@ public class HashJoinRegionScanner implements RegionScanner {
     @Override
     public boolean nextRaw(List<Cell> result, ScannerContext scannerContext)
             throws IOException {
-        throw new IOException("Next with scannerContext should not be called in Phoenix environment");
+        return nextRaw(result);
     }
 
     @Override

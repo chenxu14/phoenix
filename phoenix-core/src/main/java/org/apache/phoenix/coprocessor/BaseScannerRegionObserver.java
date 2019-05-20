@@ -175,7 +175,8 @@ abstract public class BaseScannerRegionObserver implements RegionObserver {
     }
 
     abstract protected boolean isRegionObserverFor(Scan scan);
-    abstract protected RegionScanner doPostScannerOpen(ObserverContext<RegionCoprocessorEnvironment> c, final Scan scan, final RegionScanner s) throws Throwable;
+    abstract protected RegionScanner doPostScannerOpen(ObserverContext<RegionCoprocessorEnvironment> c, final Scan scan,
+        final RegionScanner s, final ScannerContext scannerContext) throws Throwable;
 
     protected boolean skipRegionBoundaryCheck(Scan scan) {
         byte[] skipCheckBytes = scan.getAttribute(SKIP_REGION_BOUNDARY_CHECK);
@@ -215,7 +216,7 @@ abstract public class BaseScannerRegionObserver implements RegionObserver {
                 this.scan = scan;
             }
     
-            private void overrideDelegate() throws IOException {
+            private void overrideDelegate(ScannerContext scannerContext) throws IOException {
                 if (wasOverriden) {
                     return;
                 }
@@ -229,7 +230,7 @@ abstract public class BaseScannerRegionObserver implements RegionObserver {
                 final Span savedSpan = Trace.currentSpan();
                 final Span child = Trace.startSpan(SCANNER_OPENED_TRACE_INFO, savedSpan).getSpan();
                 try {
-                    RegionScanner scanner = doPostScannerOpen(c, scan, delegate);
+                    RegionScanner scanner = doPostScannerOpen(c, scan, delegate, scannerContext);
                     scanner = new DelegateRegionScanner(scanner) {
                         // This isn't very obvious but close() could be called in a thread
                         // that is different from the thread that created the scanner.
@@ -262,8 +263,8 @@ abstract public class BaseScannerRegionObserver implements RegionObserver {
             
             @Override
             public boolean next(List<Cell> result, ScannerContext scannerContext) throws IOException {
-                overrideDelegate();
-                boolean res = super.next(result);
+                overrideDelegate(scannerContext);
+                boolean res = super.next(result, scannerContext);
                 ScannerContextUtil.incrementSizeProgress(scannerContext, result);
                 ScannerContextUtil.updateTimeProgress(scannerContext);
                 return res;
@@ -271,14 +272,14 @@ abstract public class BaseScannerRegionObserver implements RegionObserver {
 
             @Override
             public boolean next(List<Cell> result) throws IOException {
-                overrideDelegate();
+                overrideDelegate(null);
                 return super.next(result);
             }
 
             @Override
             public boolean nextRaw(List<Cell> result, ScannerContext scannerContext) throws IOException {
-                overrideDelegate();
-                boolean res = super.nextRaw(result);
+                overrideDelegate(scannerContext);
+                boolean res = super.nextRaw(result, scannerContext);
                 ScannerContextUtil.incrementSizeProgress(scannerContext, result);
                 ScannerContextUtil.updateTimeProgress(scannerContext);
                 return res;
@@ -286,7 +287,7 @@ abstract public class BaseScannerRegionObserver implements RegionObserver {
             
             @Override
             public boolean nextRaw(List<Cell> result) throws IOException {
-                overrideDelegate();
+                overrideDelegate(null);
                 return super.nextRaw(result);
             }
         }
